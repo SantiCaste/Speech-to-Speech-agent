@@ -14,8 +14,8 @@ def record_audio(fs=16000, silence_threshold=0.01, silence_duration=0.5, max_sil
     stream = sd.InputStream(samplerate=fs, channels=1, dtype='int16')
     stream.start()
 
-    speech_detected, silence_detected = False, True #speech_detected is used to identify that some speech has been detected already and silence_detected is used to control the silence duration
-    silence_start_time = None
+    speech_detected = False # Flag to indicate if speech has already been detected
+    silence_start_time = None # Time when silence started
 
     while True:
         audio_chunk, _ = stream.read(fs // 10)  # Read in chunks of 100ms
@@ -31,17 +31,11 @@ def record_audio(fs=16000, silence_threshold=0.01, silence_duration=0.5, max_sil
 
         if rms >= silence_threshold:
             speech_detected = True
-            silence_detected = False
             silence_start_time = None
-        elif speech_detected and rms < silence_threshold:
+        elif speech_detected:
             if silence_start_time is None:
                 silence_start_time = time.time()
-
-            silence_detected = True
-            
-        # if speech has already been detected and silence has been detected for more than max_silence_duration, stop recording:
-        if speech_detected and silence_detected:
-            if time.time() - silence_start_time >= max_silence_duration:
+            elif time.time() - silence_start_time >= max_silence_duration:
                 break
 
     stream.stop()
@@ -49,7 +43,7 @@ def record_audio(fs=16000, silence_threshold=0.01, silence_duration=0.5, max_sil
     print("Recording complete.")
     audio = np.array(audio_buffer, dtype=np.int16)
     audio = audio.astype(np.float32) / np.iinfo(np.int16).max
-    return np.squeeze(audio)        
+    return np.squeeze(audio)      
 
 def speech_to_text(audio):
     result = whisper_model.transcribe(audio)
