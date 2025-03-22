@@ -58,7 +58,7 @@ def main(sttMode=True):
                 continue
             
             if sttMode:
-                audio = stt.record_audio(silence_threshold=55)
+                audio = stt.record_audio(silence_threshold=100)
                 input_text = stt.speech_to_text(audio)
 
             if not input_text or not sttMode:

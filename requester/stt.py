@@ -1,17 +1,21 @@
 import whisper
 import numpy as np
 import sounddevice as sd
+import time
 
 AUDIO_STOPPER_KEYWORD = ['finalizar', 'stop', 'terminar', 'detener', 'fin', 'gracias']
 
 whisper_model = whisper.load_model("base")
 
-def record_audio(fs=16000, silence_threshold=0.01, silence_duration=1.0):
+def record_audio(fs=16000, silence_threshold=0.01, silence_duration=0.5, max_silence_duration=1.0):
     print("Recording audio...")
     audio_buffer = []
     silence_buffer = []
     stream = sd.InputStream(samplerate=fs, channels=1, dtype='int16')
     stream.start()
+
+    speech_detected, silence_detected = False, True #speech_detected is used to identify that some speech has been detected already and silence_detected is used to control the silence duration
+    silence_start_time = None
 
     while True:
         audio_chunk, _ = stream.read(fs // 10)  # Read in chunks of 100ms
@@ -24,8 +28,21 @@ def record_audio(fs=16000, silence_threshold=0.01, silence_duration=1.0):
 
         # Calculate the RMS value of the silence buffer
         rms = np.sqrt(np.mean(np.square(np.array(silence_buffer, dtype=np.float32))))
-        if rms < silence_threshold and len(audio_buffer) > 45000: #this is done so that the audio is stopped once a certain time is reached and not before that. (min audio) 
-            break
+
+        if rms >= silence_threshold:
+            speech_detected = True
+            silence_detected = False
+            silence_start_time = None
+        elif speech_detected and rms < silence_threshold:
+            if silence_start_time is None:
+                silence_start_time = time.time()
+
+            silence_detected = True
+            
+        # if speech has already been detected and silence has been detected for more than max_silence_duration, stop recording:
+        if speech_detected and silence_detected:
+            if time.time() - silence_start_time >= max_silence_duration:
+                break
 
     stream.stop()
     stream.close()
