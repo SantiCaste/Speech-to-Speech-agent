@@ -1,7 +1,6 @@
-import pyttsx3
 import requests
 import json
-import tts_worker
+import tts_worker, stt
 
 model = 'deepseek-r1:32b'
 
@@ -20,8 +19,6 @@ def generate(prompt, context):
     r.raise_for_status()
 
     buffer = []
-    buffer_size = TOKENS_PER_SECOND  # Adjust this value as needed
-
     hasFinishedThinking: bool = False
 
     for line in r.iter_lines():
@@ -31,14 +28,16 @@ def generate(prompt, context):
         # Wait until the 'finished thinking' flag is set
         if not hasFinishedThinking and response_part != '</think>':
             continue
+        elif response_part == '</think>': #this is only done once (after the previous if is false) and can be optimized by removing the if
+            hasFinishedThinking = True
+            continue
         
-        hasFinishedThinking = True
-
         buffer.append(response_part)
 
         # Send the accumulated responses to the TTS worker when the buffer size is reached
-        if len(buffer) >= buffer_size or body.get('done', False):
-            tts_worker.textQueue.put(' '.join(buffer))
+        if '.' in response_part or body.get('done', False): # so that sentences are not cut in the middle
+            processed_buffer = ' '.join(buffer)
+            tts_worker.textQueue.put(processed_buffer)
             buffer = []
 
         if 'error' in body:
@@ -47,18 +46,41 @@ def generate(prompt, context):
         if body.get('done', False):
             return body['context']
 
-def main():
+def main(sttMode=True):
+    running = True
+    input_text = None
     context = []
+    started = False
 
     try:
-        while True:
-            user_input = input('You: ')
-            if not user_input:
-                break
-            if user_input.lower() == "exit":
+        while running:
+            if not tts_worker.textQueue.empty(): #to wait for the tts to finish speaking
+                continue
+            
+            if sttMode:
+                audio = stt.record_audio(silence_threshold=55)
+                input_text = stt.speech_to_text(audio)
+
+            if not input_text or not sttMode:
+                input_text = input("You: ")
+
+            inp = input_text.lower()
+
+            if any(keyword in inp for keyword in stt.AUDIO_STOPPER_KEYWORD):
+                running = False
+                print("Goodbye!")
                 break
 
-            context = generate(user_input, context)
+            if not started:
+                if 'comenzar' in inp:
+                    started = True
+                    print("Starting conversation...")
+                    inp = inp.replace('comenzar', '', 1)
+                else:
+                    print("Say 'comenzar' to start the conversation.")
+                    continue
+
+            context = generate(inp, context)
 
     except KeyboardInterrupt:
         print("\nTerminating...")
