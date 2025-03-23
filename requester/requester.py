@@ -4,11 +4,9 @@ import tts_worker, stt
 
 model = 'deepseek-r1:32b'
 
-TOKENS_PER_SECOND = 39
-
-def generate(prompt, context):
-    prePrompt = "Keep the response at most 50 words long. The prompt is: "
-    prompt = prePrompt + prompt
+def generate(prompt, context) -> str:
+    pre_prompt = "You are an assistant in a spoken conversation with a human. Please keep the responses short and simple, limiting the number of words to 50. The prompt is: "
+    prompt = pre_prompt + prompt
     r = requests.post('http://localhost:11434/api/generate',
                     json={
                         'model': model,
@@ -36,14 +34,16 @@ def generate(prompt, context):
 
         # Send the accumulated responses to the TTS worker when the buffer size is reached
         if '.' in response_part or body.get('done', False): # so that sentences are not cut in the middle
-            processed_buffer = ' '.join(buffer)
+            processed_buffer = ''.join(buffer)
             tts_worker.textQueue.put(processed_buffer)
             buffer = []
+
+            print(f'{processed_buffer}')
 
         if 'error' in body:
             raise Exception(body['error'])
 
-        if body.get('done', False):
+        if body.get('done', False): 
             return body['context']
 
 def main(sttMode=True):
