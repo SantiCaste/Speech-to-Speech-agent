@@ -58,24 +58,36 @@ def main(sttMode=True):
                 continue
             
             if sttMode:
-                audio = stt.record_audio(silence_threshold=100)
+                audio = stt.record_audio(silence_threshold=150)
                 input_text = stt.speech_to_text(audio)
 
             if not input_text or not sttMode:
                 input_text = input("You: ")
 
             inp = input_text.lower()
+            if inp == '':
+                print('No input detected.')
+                continue
 
-            if any(keyword in inp for keyword in stt.AUDIO_STOPPER_KEYWORD):
+            first_word = inp.split(maxsplit=1)[0] # take the first word of the input to use for commands checking
+            if any(keyword in first_word for keyword in stt.PROGRAM_FINISH_KEYWORD):
                 running = False
+                tts_worker.textQueue.put("Goodbye!")
                 print("Goodbye!")
-                break
+                break #to exit the loop
+
+            if any(keyword in first_word for keyword in stt.AUDIO_STOPPER_KEYWORD):
+                started = False
+                tts_worker.textQueue.put("Adios!")
+                print('Adios!')
+                continue
 
             if not started:
-                if 'comenzar' in inp:
+                if any(keyword in first_word for keyword in stt.AUDIO_START_KEYWORD):
                     started = True
                     print("Starting conversation...")
-                    inp = inp.replace('comenzar', '', 1)
+                    tts_worker.textQueue.put("Te escucho...")
+                    continue
                 else:
                     print("Say 'comenzar' to start the conversation.")
                     continue

@@ -3,9 +3,13 @@ import numpy as np
 import sounddevice as sd
 import time
 
+WHISPER_MODEL = "small"
+
+PROGRAM_FINISH_KEYWORD = ['exit', 'quit', 'salir']
+AUDIO_START_KEYWORD = ['comenzar', 'start', 'iniciar', 'empezar', 'comienzo', 'comenzamos', 'empezamos']
 AUDIO_STOPPER_KEYWORD = ['finalizar', 'stop', 'terminar', 'detener', 'fin', 'gracias']
 
-whisper_model = whisper.load_model("base")
+whisper_model = whisper.load_model(WHISPER_MODEL)
 
 def record_audio(fs=16000, silence_threshold=0.01, silence_duration=0.5, max_silence_duration=1.0):
     print("Recording audio...")
@@ -28,6 +32,8 @@ def record_audio(fs=16000, silence_threshold=0.01, silence_duration=0.5, max_sil
 
         # Calculate the RMS value of the silence buffer
         rms = np.sqrt(np.mean(np.square(np.array(silence_buffer, dtype=np.float32))))
+
+        #print(f'RMS: {rms}')
 
         if rms >= silence_threshold:
             speech_detected = True
