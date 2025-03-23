@@ -7,6 +7,12 @@ textQueue = Queue()
 def my_tts_worker():
     tts_engine = pyttsx3.init()
 
+    voices = tts_engine.getProperty('voices')
+    for voice in voices:
+        if 'EN-US_DAVID' in voice.id:
+            tts_engine.setProperty('voice', voice.id)
+            break
+
     while True:
         text = textQueue.get()
         if text is None:
